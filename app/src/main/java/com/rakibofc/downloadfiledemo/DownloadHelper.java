@@ -8,15 +8,23 @@ import android.content.IntentFilter;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.Environment;
-import android.util.Log;
+
+import java.io.File;
+import java.io.IOException;
+import java.net.MalformedURLException;
+import java.net.URL;
 
 public class DownloadHelper {
 
-    public static void downloadImage(Context context, String downloadUrl, String fileName, final DownloadCompleteListener listener) {
+    public static void downloadImage(Context context, String downloadUrl, final DownloadCompleteListener listener) {
 
         // Get download service and create download manager request
         DownloadManager downloadManager = (DownloadManager) context.getSystemService(Context.DOWNLOAD_SERVICE);
         DownloadManager.Request request = new DownloadManager.Request(Uri.parse(downloadUrl));
+
+        String downloadPath = Environment.getExternalStorageDirectory().getAbsolutePath() +
+                "/Android/data/" + context.getPackageName() + "/files/mushaf/qaloon/";
+        String fileName = generateFileName(downloadUrl);
 
         // Set the destination directory to Android/data/package_name/files directory
         // String destination = Environment.getExternalStorageDirectory() + "/Android/data/" + context.getPackageName() + "/files/mushaf/qaloon/";
@@ -24,7 +32,7 @@ public class DownloadHelper {
         request.setDescription("Downloading");
         request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
         request.setVisibleInDownloadsUi(false);
-        request.setDestinationInExternalFilesDir(context, null, fileName);
+        request.setDestinationInExternalFilesDir(context, "/mushaf/qaloon/", fileName);
 
         // Get download service and enqueue the download
         final long downloadId = downloadManager.enqueue(request);
@@ -53,7 +61,12 @@ public class DownloadHelper {
                         if (status == DownloadManager.STATUS_SUCCESSFUL) {
                             // Download completed successfully
                             if (listener != null) {
-                                listener.onDownloadComplete();
+                                try {
+                                    UnpackZip.extract(new File(downloadPath + fileName), new File(downloadPath));
+                                    listener.onDownloadComplete();
+                                } catch (IOException e) {
+                                    throw new RuntimeException(e);
+                                }
                             }
                         } else {
                             // Download failed
@@ -74,5 +87,17 @@ public class DownloadHelper {
         };
         // Register the BroadcastReceiver to receive the download completion event
         context.registerReceiver(downloadReceiver, new IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE));
+    }
+
+    private static String generateFileName(String url) {
+
+        try {
+            URL fileUrl = new URL(url);
+            String path = fileUrl.getPath();
+
+            return path.substring(path.lastIndexOf('/') + 1);
+        } catch (MalformedURLException e) {
+            return null;
+        }
     }
 }

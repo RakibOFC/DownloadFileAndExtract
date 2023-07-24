@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">Download File Demo</string>
+    <string name="download">Download</string>
 </resources>
